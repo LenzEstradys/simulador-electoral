@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 
 # --- Configuración de la Página ---
 st.set_page_config(
-    page_title="Simulador Electoral Avanzado",
-    page_icon="🗳️",
+    page_title="Simulador Electoral Definitivo",
+    page_icon="🏆",
     layout="wide"
 )
 
@@ -18,7 +18,10 @@ COLOR_BLANCO = 'lightgrey'
 
 
 # --- Carga y Preparación de Datos ---
+# AHORA INCLUIMOS A PDC Y LIBRE COMO FUENTES DE VOTOS A REDISTRIBUIR
 csv_data = """Partido,Votos 1ra vuelta
+PDC,1717432
+LIBRE,1430176
 UNIDAD NAL.,1039426
 MAS,166917
 F P,86154
@@ -29,15 +32,15 @@ Nulo,1325596
 """
 df_transfer = pd.read_csv(io.StringIO(csv_data))
 
-# Votos base de los finalistas
-votos_base_pdc = 1717432
-votos_base_libre = 1430176
+# LOS VOTOS BASE AHORA SON 0, TODO SE CALCULA POR TRANSFERENCIA
+votos_base_pdc = 0
+votos_base_libre = 0
 votos_base_nulos = 0
 votos_base_blancos = 0
 
-# --- Barra Lateral con Controles Interactivos Avanzados ---
-st.sidebar.header("⚙️ Simulación de Transferencia")
-st.sidebar.write("Ajuste la distribución de votos para cada partido de origen.")
+# --- Barra Lateral con Controles Interactivos ---
+st.sidebar.header("🏆 Simulación de Transferencia Total")
+st.sidebar.write("Ajuste la distribución para TODOS los votantes de la 1ra vuelta.")
 
 transfer_results = {}
 
@@ -45,19 +48,36 @@ for index, row in df_transfer.iterrows():
     partido = row['Partido']
     votos_origen = row['Votos 1ra vuelta']
     
-    with st.sidebar.expander(f"**{partido}** ({votos_origen:,} votos)"):
-        # Sliders inteligentes que ajustan su máximo dinámicamente
-        pct_pdc = st.slider(f"% a PDC 🟠", 0, 100, 40, key=f"{partido}_pdc")
+    with st.sidebar.expander(f"**Votantes de '{partido}'** ({votos_origen:,})"):
+        if partido == 'PDC':
+            # Sliders para votantes originales de PDC
+            pct_pdc = st.slider(f"% Retención (se quedan en PDC 🟠)", 0, 100, 80, key=f"{partido}_pdc")
+            max_libre = 100 - pct_pdc
+            pct_libre = st.slider(f"% Fuga a LIBRE 🔴", 0, max_libre, 5, key=f"{partido}_libre")
+            max_nulo = 100 - pct_pdc - pct_libre
+            pct_nulo = st.slider(f"% Fuga a Nulo", 0, max_nulo, 10, key=f"{partido}_nulo")
+            pct_blanco = 100 - pct_pdc - pct_libre - pct_nulo
+            st.write(f"**% Fuga a Blanco (auto): {pct_blanco}%**")
         
-        max_libre = 100 - pct_pdc
-        pct_libre = st.slider(f"% a LIBRE 🔴", 0, max_libre, 30, key=f"{partido}_libre")
-        
-        max_blanco = 100 - pct_pdc - pct_libre
-        pct_blanco = st.slider(f"% a Blanco", 0, max_blanco, 10, key=f"{partido}_blanco")
-        
-        # El porcentaje a Nulo se calcula automáticamente
-        pct_nulo = 100 - pct_pdc - pct_libre - pct_blanco
-        st.write(f"**% a Nulo (auto): {pct_nulo}%**")
+        elif partido == 'LIBRE':
+            # Sliders para votantes originales de LIBRE
+            pct_libre = st.slider(f"% Retención (se quedan en LIBRE 🔴)", 0, 100, 85, key=f"{partido}_libre")
+            max_pdc = 100 - pct_libre
+            pct_pdc = st.slider(f"% Fuga a PDC 🟠", 0, max_pdc, 5, key=f"{partido}_pdc")
+            max_nulo = 100 - pct_libre - pct_pdc
+            pct_nulo = st.slider(f"% Fuga a Nulo", 0, max_nulo, 5, key=f"{partido}_nulo")
+            pct_blanco = 100 - pct_libre - pct_pdc - pct_nulo
+            st.write(f"**% Fuga a Blanco (auto): {pct_blanco}%**")
+
+        else:
+            # Sliders para los demás partidos
+            pct_pdc = st.slider(f"% a PDC 🟠", 0, 100, 40, key=f"{partido}_pdc")
+            max_libre = 100 - pct_pdc
+            pct_libre = st.slider(f"% a LIBRE 🔴", 0, max_libre, 30, key=f"{partido}_libre")
+            max_nulo = 100 - pct_pdc - pct_libre
+            pct_nulo = st.slider(f"% a Nulo", 0, max_nulo, 20, key=f"{partido}_nulo")
+            pct_blanco = 100 - pct_pdc - pct_libre - pct_nulo
+            st.write(f"**% a Blanco (auto): {pct_blanco}%**")
         
         transfer_results[partido] = {
             'pdc': pct_pdc / 100.0,
@@ -67,11 +87,10 @@ for index, row in df_transfer.iterrows():
         }
 
 # --- Lógica de Cálculo ---
-# (La lógica no cambia, solo las variables que alimentan el cálculo)
-votos_transferidos_a_pdc = 0
-votos_transferidos_a_libre = 0
-votos_transferidos_a_nulos = 0
-votos_transferidos_a_blancos = 0
+total_pdc = votos_base_pdc
+total_libre = votos_base_libre
+total_nulos = votos_base_nulos
+total_blancos = votos_base_blancos
 desglose_data = []
 
 for partido, percentages in transfer_results.items():
@@ -82,10 +101,10 @@ for partido, percentages in transfer_results.items():
     votos_a_nulo = votos_origen * percentages['nulo']
     votos_a_blanco = votos_origen * percentages['blanco']
     
-    votos_transferidos_a_pdc += votos_a_pdc
-    votos_transferidos_a_libre += votos_a_libre
-    votos_transferidos_a_nulos += votos_a_nulo
-    votos_transferidos_a_blancos += votos_a_blanco
+    total_pdc += votos_a_pdc
+    total_libre += votos_a_libre
+    total_nulos += votos_a_nulo
+    total_blancos += votos_a_blanco
     
     desglose_data.append({
         'Partido Origen': partido,
@@ -95,16 +114,10 @@ for partido, percentages in transfer_results.items():
         'Votos a Blanco': int(votos_a_blanco)
     })
 
-# Totales finales
-total_pdc = votos_base_pdc + votos_transferidos_a_pdc
-total_libre = votos_base_libre + votos_transferidos_a_libre
-total_nulos = votos_base_nulos + votos_transferidos_a_nulos
-total_blancos = votos_base_blancos + votos_transferidos_a_blancos
-
 votos_validos = total_pdc + total_libre
 
 # --- Panel Principal: Visualización de Resultados ---
-st.title("🗳️ Simulador Electoral Avanzado - 2da Vuelta")
+st.title("🏆 Simulador Electoral Definitivo - 2da Vuelta")
 st.markdown("---")
 
 st.header("Resultados sobre Votos Válidos")
@@ -125,13 +138,11 @@ with col2:
 with col3:
     st.metric(label="Diferencia de Votos", value=f"{int(diferencia):,}", delta=ganador)
 
-# Gráfico de Resultados Válidos con Colores
 fig_bar = go.Figure()
 fig_bar.add_trace(go.Bar(name='PDC', x=['PDC'], y=[total_pdc], text=f"{pct_final_pdc:.1f}%", textposition='auto', marker_color=COLOR_PDC))
 fig_bar.add_trace(go.Bar(name='LIBRE', x=['LIBRE'], y=[total_libre], text=f"{pct_final_libre:.1f}%", textposition='auto', marker_color=COLOR_LIBRE))
 fig_bar.update_layout(title_text='<b>Resultado Final sobre Votos Válidos</b>', yaxis_title='Cantidad de Votos', showlegend=False)
 st.plotly_chart(fig_bar, use_container_width=True)
-
 
 st.markdown("---")
 st.header("Distribución del Voto Total Emitido")
@@ -140,7 +151,6 @@ kpi1, kpi2 = st.columns(2)
 kpi1.metric(label="Votos Nulos Proyectados", value=f"{int(total_nulos):,}")
 kpi2.metric(label="Votos Blancos Proyectados", value=f"{int(total_blancos):,}")
 
-# Gráfico de Anillo del Voto Total con Colores
 labels = ['PDC 🟠', 'LIBRE 🔴', 'Nulos', 'Blancos']
 values = [total_pdc, total_libre, total_nulos, total_blancos]
 fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.4,
@@ -150,7 +160,8 @@ st.plotly_chart(fig_pie, use_container_width=True)
 
 st.markdown("---")
 st.header("Detalle de Transferencia de Votos por Origen")
-df_desglose = pd.DataFrame(desglose_data)
+st.write("Esta tabla muestra cómo se distribuyeron los votos de CADA partido de la 1ra vuelta.")
+df_desglose = pd.DataFrame(desglose_data).set_index('Partido Origen')
 st.dataframe(df_desglose.style.format(formatter={
     'Votos a PDC 🟠': '{:,.0f}',
     'Votos a LIBRE 🔴': '{:,.0f}',
