@@ -13,8 +13,9 @@ st.set_page_config(
 # --- Colores de Partidos ---
 COLOR_PDC = '#FF7F0E' # Naranja
 COLOR_LIBRE = '#D62728' # Rojo
-COLOR_NULO = 'grey'
-COLOR_BLANCO = 'lightgrey'
+# Tonos claros para Nulos y Blancos
+COLOR_PDC_LIGHT = '#FFDAB9' # Naranja claro (Durazno)
+COLOR_LIBRE_LIGHT = '#F08080' # Rojo claro (Coral)
 
 
 # --- Carga y Preparación de Datos ---
@@ -143,20 +144,26 @@ kpi2.metric(label="Votos Blancos Proyectados", value=f"{int(total_blancos):,}")
 # --- LÓGICA DEL GRÁFICO FINAL MEJORADO ---
 labels_pie = ['PDC 🟠', 'LIBRE 🔴', 'Nulos', 'Blancos']
 values_pie = [total_pdc, total_libre, total_nulos, total_blancos]
-pull_pie = [0, 0, 0, 0] # Por defecto, ninguna sección se separa
+pull_pie = [0, 0, 0, 0] 
 
+# Asignación dinámica de colores y corona
 if total_pdc > total_libre:
     labels_pie[0] = f"👑 {labels_pie[0]}"
-    pull_pie[0] = 0.1 # Separa la sección del ganador
+    pull_pie[0] = 0.1 
+    pie_colors = [COLOR_PDC, COLOR_LIBRE, COLOR_PDC_LIGHT, COLOR_LIBRE_LIGHT]
 elif total_libre > total_pdc:
     labels_pie[1] = f"👑 {labels_pie[1]}"
-    pull_pie[1] = 0.1 # Separa la sección del ganador
+    pull_pie[1] = 0.1
+    pie_colors = [COLOR_PDC, COLOR_LIBRE, COLOR_LIBRE_LIGHT, COLOR_PDC_LIGHT]
+else: # En caso de empate
+    pie_colors = [COLOR_PDC, COLOR_LIBRE, 'grey', 'lightgrey']
+
 
 fig_pie = go.Figure(data=[go.Pie(
     labels=labels_pie, 
     values=values_pie, 
     hole=.4,
-    marker_colors=[COLOR_PDC, COLOR_LIBRE, COLOR_NULO, COLOR_BLANCO],
+    marker_colors=pie_colors,
     pull=pull_pie,
     textinfo='percent+label',
     textfont_size=14
