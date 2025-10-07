@@ -13,7 +13,6 @@ st.set_page_config(
 # --- Colores de Partidos ---
 COLOR_PDC = '#FF7F0E' # Naranja
 COLOR_LIBRE = '#D62728' # Rojo
-# Tonos claros para Nulos y Blancos
 COLOR_PDC_LIGHT = '#FFDAB9' # Naranja claro (Durazno)
 COLOR_LIBRE_LIGHT = '#F08080' # Rojo claro (Coral)
 
@@ -111,6 +110,7 @@ st.title("🏆 Simulador Electoral Definitivo - 2da Vuelta")
 st.markdown("---")
 
 st.header("Resultados sobre Votos Válidos")
+# Esta sección se mantiene para mostrar el % y la diferencia de la competencia directa
 col1, col2, col3 = st.columns(3)
 
 if votos_validos > 0:
@@ -121,10 +121,11 @@ if votos_validos > 0:
 else:
     pct_final_pdc, pct_final_libre, ganador_str, diferencia = 0, 0, "Indefinido", 0
 
+# Se mantienen los 3 KPIs de la competencia directa
 with col1:
-    st.metric(label="Votos Proyectados PDC 🟠", value=f"{int(total_pdc):,}", help=f"{pct_final_pdc:.2f}% de votos válidos")
+    st.metric(label="Votos Válidos PDC 🟠", value=f"{int(total_pdc):,}", help=f"{pct_final_pdc:.2f}% de votos válidos")
 with col2:
-    st.metric(label="Votos Proyectados LIBRE 🔴", value=f"{int(total_libre):,}", help=f"{pct_final_libre:.2f}% de votos válidos")
+    st.metric(label="Votos Válidos LIBRE 🔴", value=f"{int(total_libre):,}", help=f"{pct_final_libre:.2f}% de votos válidos")
 with col3:
     st.metric(label="Diferencia de Votos", value=f"{int(diferencia):,}", delta=ganador_str)
 
@@ -137,16 +138,20 @@ st.plotly_chart(fig_bar, use_container_width=True)
 st.markdown("---")
 st.header("Distribución del Voto Total Emitido")
 
-kpi1, kpi2 = st.columns(2)
-kpi1.metric(label="Votos Nulos Proyectados", value=f"{int(total_nulos):,}")
-kpi2.metric(label="Votos Blancos Proyectados", value=f"{int(total_blancos):,}")
+# --- SECCIÓN CORREGIDA ---
+# Ahora se usan 4 columnas para mostrar todos los totales juntos
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+kpi1.metric(label="Total Votos PDC 🟠", value=f"{int(total_pdc):,}")
+kpi2.metric(label="Total Votos LIBRE 🔴", value=f"{int(total_libre):,}")
+kpi3.metric(label="Total Votos Nulos", value=f"{int(total_nulos):,}")
+kpi4.metric(label="Total Votos Blancos", value=f"{int(total_blancos):,}")
+
 
 # --- LÓGICA DEL GRÁFICO FINAL MEJORADO ---
 labels_pie = ['PDC 🟠', 'LIBRE 🔴', 'Nulos', 'Blancos']
 values_pie = [total_pdc, total_libre, total_nulos, total_blancos]
 pull_pie = [0, 0, 0, 0] 
 
-# Asignación dinámica de colores y corona
 if total_pdc > total_libre:
     labels_pie[0] = f"👑 {labels_pie[0]}"
     pull_pie[0] = 0.1 
@@ -155,9 +160,8 @@ elif total_libre > total_pdc:
     labels_pie[1] = f"👑 {labels_pie[1]}"
     pull_pie[1] = 0.1
     pie_colors = [COLOR_PDC, COLOR_LIBRE, COLOR_LIBRE_LIGHT, COLOR_PDC_LIGHT]
-else: # En caso de empate
+else:
     pie_colors = [COLOR_PDC, COLOR_LIBRE, 'grey', 'lightgrey']
-
 
 fig_pie = go.Figure(data=[go.Pie(
     labels=labels_pie, 
