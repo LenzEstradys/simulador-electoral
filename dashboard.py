@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
 import io
-import matplotlib.pyplot as plt
-from pywaffle import Waffle
+import plotly.graph_objects as go
 
 # --- Configuración de la Página ---
 st.set_page_config(
-    page_title="Simulador Electoral Definitivo",
-    page_icon="🏆",
+    page_title="Simulador Electoral Rápido",
+    page_icon="⚡",
     layout="wide"
 )
 
@@ -36,7 +35,7 @@ total_votantes_1ra_vuelta = df_transfer['Votos 1ra vuelta'].sum()
 votos_base_pdc, votos_base_libre, votos_base_nulos, votos_base_blancos = 0, 0, 0, 0
 
 # --- Barra Lateral con Controles Interactivos ---
-st.sidebar.header("🏆 Simulación de Transferencia Total")
+st.sidebar.header("⚡ Simulación de Transferencia Total")
 st.sidebar.write("Escriba el % para cada categoría.")
 
 transfer_results = {}
@@ -46,7 +45,6 @@ for index, row in df_transfer.iterrows():
     votos_origen = row['Votos 1ra vuelta']
     
     with st.sidebar.expander(f"**Votantes de '{partido}'** ({votos_origen:,})"):
-        # Lógica para votantes de PDC
         if partido == 'PDC':
             pct_pdc = st.number_input(f"% Retención (a PDC 🟠)", 0, 100, 80, key=f"{partido}_pdc")
             max_libre = 100 - pct_pdc
@@ -56,7 +54,6 @@ for index, row in df_transfer.iterrows():
             pct_blanco = 100 - pct_pdc - pct_libre - pct_nulo
             st.markdown(f"**% Fuga a Blanco (auto): `{pct_blanco}`%**")
         
-        # Lógica para votantes de LIBRE
         elif partido == 'LIBRE':
             pct_libre = st.number_input(f"% Retención (a LIBRE 🔴)", 0, 100, 85, key=f"{partido}_libre")
             max_pdc = 100 - pct_libre
@@ -66,7 +63,6 @@ for index, row in df_transfer.iterrows():
             pct_blanco = 100 - pct_libre - pct_pdc - pct_nulo
             st.markdown(f"**% Fuga a Blanco (auto): `{pct_blanco}`%**")
 
-        # Lógica para los demás
         else:
             pct_pdc = st.number_input(f"% a PDC 🟠", 0, 100, 40, key=f"{partido}_pdc")
             max_libre = 100 - pct_pdc
@@ -99,17 +95,11 @@ total_proyectado_2da_vuelta = total_pdc + total_libre + total_nulos + total_blan
 votos_validos = total_pdc + total_libre
 
 # --- Panel Principal: Visualización de Resultados ---
-st.title("🏆 Simulador Electoral Definitivo - 2da Vuelta")
+st.title("⚡ Simulador Electoral Rápido - 2da Vuelta")
 
-# --- PANEL DE VERIFICACIÓN DE TOTALES ---
-st.info(f"""
-**Verificación de Votos:**
-- **Total Votantes 1ra Vuelta:** `{int(total_votantes_1ra_vuelta):,}`
-- **Total Proyectado 2da Vuelta:** `{int(total_proyectado_2da_vuelta):,}`
-""", icon="✅")
+st.info(f"**Verificación de Votos:** Total 1ra Vuelta: `{int(total_votantes_1ra_vuelta):,}` | Total Proyectado 2da Vuelta: `{int(total_proyectado_2da_vuelta):,}`", icon="✅")
 st.markdown("---")
 
-# --- SECCIÓN DE RESULTADOS VÁLIDOS ---
 st.header("Resultados sobre Votos Válidos")
 col1, col2, col3 = st.columns(3)
 
@@ -126,7 +116,6 @@ with col2: st.metric(label="Votos Válidos LIBRE 🔴", value=f"{int(total_libre
 with col3: st.metric(label="Diferencia de Votos", value=f"{int(diferencia):,}", delta=ganador_str)
 st.markdown("---")
 
-# --- SECCIÓN DE DISTRIBUCIÓN TOTAL ---
 st.header("Distribución del Voto Total Emitido")
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 kpi1.metric(label="Total Votos PDC 🟠", value=f"{int(total_pdc):,}")
@@ -134,35 +123,32 @@ kpi2.metric(label="Total Votos LIBRE 🔴", value=f"{int(total_libre):,}")
 kpi3.metric(label="Total Votos Nulos", value=f"{int(total_nulos):,}")
 kpi4.metric(label="Total Votos Blancos", value=f"{int(total_blancos):,}")
 
-# --- GRÁFICO DE PERSONITAS (WAFFLE CHART) ---
-data_waffle = {
-    'PDC 🟠': total_pdc,
-    'LIBRE 🔴': total_libre,
-    'Nulos': total_nulos,
-    'Blancos': total_blancos
-}
-# Asignación de corona
-if ganador_str == "PDC 🟠":
-    data_waffle = {'👑 PDC 🟠': total_pdc, 'LIBRE 🔴': total_libre, 'Nulos': total_nulos, 'Blancos': total_blancos}
-    waffle_colors = [COLOR_PDC, COLOR_LIBRE, COLOR_NULO, COLOR_BLANCO]
-else:
-    data_waffle = {'PDC 🟠': total_pdc, '👑 LIBRE 🔴': total_libre, 'Nulos': total_nulos, 'Blancos': total_blancos}
-    waffle_colors = [COLOR_PDC, COLOR_LIBRE, COLOR_NULO, COLOR_BLANCO]
+# --- GRÁFICO DE ANILLO (DONA) RÁPIDO Y LIGERO ---
+labels_pie = ['PDC 🟠', 'LIBRE 🔴', 'Nulos', 'Blancos']
+values_pie = [total_pdc, total_libre, total_nulos, total_blancos]
+pull_pie = [0, 0, 0, 0] 
+pie_colors = [COLOR_PDC, COLOR_LIBRE, COLOR_NULO, COLOR_BLANCO]
 
-fig_waffle = plt.figure(
-    FigureClass=Waffle,
-    rows=10,
-    values=data_waffle,
-    colors=waffle_colors,
-    legend={'loc': 'upper left', 'bbox_to_anchor': (1, 1)},
-    icons='child', 
-    font_size=20, 
-    icon_style='solid'
-)
-st.pyplot(fig_waffle)
+if ganador_str == "PDC 🟠":
+    labels_pie[0] = f"👑 {labels_pie[0]}"
+    pull_pie[0] = 0.1 
+elif ganador_str == "LIBRE 🔴":
+    labels_pie[1] = f"👑 {labels_pie[1]}"
+    pull_pie[1] = 0.1
+
+fig_pie = go.Figure(data=[go.Pie(
+    labels=labels_pie, 
+    values=values_pie, 
+    hole=.4,
+    marker_colors=pie_colors,
+    pull=pull_pie,
+    textinfo='percent+label',
+    textfont_size=14
+)])
+fig_pie.update_layout(title_text='<b>Desglose del Voto Total Emitido en la Simulación</b>', showlegend=False)
+st.plotly_chart(fig_pie, use_container_width=True)
 st.markdown("---")
 
-# --- SECCIÓN DE DESGLOSE ---
 st.header("Detalle de Transferencia de Votos por Origen")
 df_desglose = pd.DataFrame(desglose_data).set_index('Partido Origen')
 st.dataframe(df_desglose.style.format(formatter={'Votos a PDC 🟠': '{:,.0f}', 'Votos a LIBRE 🔴': '{:,.0f}', 'Votos a Nulo': '{:,.0f}', 'Votos a Blanco': '{:,.0f}'}))
